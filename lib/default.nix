@@ -41,21 +41,19 @@ rec {
     # Example
 
     ```nix
-    mkToolchainTree [
+    mkToolchainCollection [
       # These may be created with mkToolchainMeta or manually
       { name = "default"; pkg = pkgs.rust-bin.stable.latest.default; }
       { name = "1.74.0-x86_64-unknown-linux-gnu", pkg = pkgs.rust-bin.stable."1.74.0".default; }
     ]
     ```
    */
-  mkToolchainTree = toolchainInstances:
+  mkToolchainCollection = toolchainInstances:
   let
     channelMap = buildChannelMap toolchainInstances;
     toolchainTreeMeta = {
       hostPlatform = pkgs.stdenv.hostPlatform.rust.rustcTarget;
     };
-
-    tomlGen = (pkgs.formats.toml {}).generate;
   in
     pkgs.runCommand "build-rust-toolchain-tree" {} ''
       mkdir $out
@@ -69,7 +67,7 @@ rec {
         )
       }
 
-      ln -s ${tomlGen "meta.toml" toolchainTreeMeta} meta.toml
+      echo -n ${lib.strings.escapeShellArg (builtins.toJSON toolchainTreeMeta)} > collection.json
     '';
 
   /**
