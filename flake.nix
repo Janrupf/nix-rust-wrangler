@@ -47,5 +47,7 @@
     devShells.default = pkgs.mkShell {
       buildInputs = [ pkgs.stdenv.cc wranglerRustToolchain ];
     };
-  }));
+  })) // {
+    overlays.default = packagesOverlayInstance;
+  };
 }
