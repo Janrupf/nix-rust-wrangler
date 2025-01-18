@@ -25,7 +25,7 @@ impl NixCommand {
         // - this command may outright fail, if nix-command is not enabled, which also
         //  means that flakes are not enabled (or at least not available)
         let nix_config_output = match Command::new(&executable)
-            .args(&["config", "show", "experimental-features"])
+            .args(["config", "show", "experimental-features"])
             .output()
         {
             Ok(v) => v,

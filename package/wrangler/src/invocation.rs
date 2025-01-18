@@ -112,7 +112,7 @@ impl Invocation {
             } else if tool == InvokedTool::NixRustWrangler {
                 tool = Self::self_arg_to_tool(next)?;
             } else {
-                remaining_args.push(next.into());
+                remaining_args.push(next);
             }
         }
 

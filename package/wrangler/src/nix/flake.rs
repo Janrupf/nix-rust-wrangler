@@ -88,9 +88,9 @@ impl NixFlake {
 
         let eval_output = nix_command
             .new_command()
-            .args(&["eval", "--json"])
+            .args(["eval", "--json"])
             .arg(installable_expression)
-            .args(&["--apply", expr.as_ref()])
+            .args(["--apply", expr.as_ref()])
             .output()?;
 
         let eval_output = Self::handle_nix_output(eval_output)?;
@@ -107,7 +107,7 @@ impl NixFlake {
 
         let build_output = nix_command
             .new_command()
-            .args(&["build", "--no-link", "--json"])
+            .args(["build", "--no-link", "--json"])
             .arg(installable_expression)
             .output()?;
 

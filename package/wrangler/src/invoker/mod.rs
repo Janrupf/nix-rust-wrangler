@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::invocation::Invocation;
 use crate::invoker::external::ExternalInvoker;
 use crate::nix::flake::NixFlake;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::path::Path;
 use std::process::Command;
 
