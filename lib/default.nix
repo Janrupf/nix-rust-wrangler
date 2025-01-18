@@ -42,15 +42,25 @@ rec {
 
     ```nix
     mkToolchainCollection [
-      # These may be created with mkToolchainMeta or manually
-      { name = "default"; pkg = pkgs.rust-bin.stable.latest.default; }
-      { name = "1.74.0-x86_64-unknown-linux-gnu", pkg = pkgs.rust-bin.stable."1.74.0".default; }
+      # These may be created with deriveToolchainInstance or manually
+      {
+        version = "1.76.0";
+        platform = "x86_64-unknown-linux-gnu",
+        pkg = pkgs.rust-bin.stable."1.76.0".default;
+        extraNames = ["default"];
+      }
+      { version = "1.74.0"; platform = "x86_64-unknown-linux-gnu", pkg = pkgs.rust-bin.stable."1.74.0".default; }
+
+      # Packages are also allowed - however, automatically deriving the toolchain
+      # instance is only possible for certain packages (e.g. from oxalica/rust-overlay)
+      pkgs.rust-bin.stable."1.72.0".default
     ]
     ```
    */
   mkToolchainCollection = toolchainInstances:
   let
-    channelMap = buildChannelMap toolchainInstances;
+    realToolchainInstances = map deriveToolchainInstance toolchainInstances;
+    channelMap = buildChannelMap realToolchainInstances;
     toolchainTreeMeta = {
       hostPlatform = pkgs.stdenv.hostPlatform.rust.rustcTarget;
     };
@@ -100,8 +110,9 @@ rec {
    */
   deriveToolchainInstanceFromSpec = spec: let
     names = map (versionName: "${versionName}-${spec.platform}") (versionLib.deriveChannelNames spec.version);
+    extraNames = spec.extraNames or [];
   in
-    mkToolchainInstance { inherit names; pkg = spec.pkg; };
+    mkToolchainInstance { names = names ++ extraNames; pkg = spec.pkg; };
 
   deriveToolchainInstanceFromOxalicaRustOverlayPkg = pkg:
   let

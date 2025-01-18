@@ -90,7 +90,15 @@ fn main() {
 
     let toolchain_collection = match ToolchainCollection::find() {
         None => {
-            tracing::error!("No toolchain found in flake and no toolchain collection found");
+            // Last resort: attempt to invoke tool from system path
+            if util::was_dispatched_into_flake() {
+                if let Some(invoker) = invoker_for_system_path(&invocation) {
+                    dispatch(invoker, &invocation);
+                    return;
+                }
+            }
+
+            tracing::error!("No toolchain found in flake and no tool found in system path");
             std::process::exit(1);
         }
         Some(v) => v,
@@ -113,10 +121,7 @@ fn main() {
 }
 
 fn find_nix() -> Option<NixCommand> {
-    if std::env::var_os("NIX_RUST_WRANGLER_INSIDE_FLAKE")
-        .map(|v| v.len() > 0)
-        .unwrap_or(false)
-    {
+    if util::was_dispatched_into_flake() {
         tracing::debug!("Already dispatched into flake, skipping nix command search to prevent infinite recursion");
         return None;
     }
@@ -140,6 +145,38 @@ fn find_nix() -> Option<NixCommand> {
     }
 
     nix_command
+}
+
+fn invoker_for_system_path(invocation: &Invocation) -> Option<ToolInvoker> {
+    let path_delegate = util::find_executable_in_path(invocation.tool.to_executable_name())?;
+    tracing::debug!(
+        "Found tool {} in system path: {}",
+        invocation.tool.to_name(),
+        path_delegate.display()
+    );
+
+    // Simple recursion check: If the tool in the path is our own executable, we'd
+    // end up in an infinite loop.
+    //
+    // If this check doesn't work for one reason or another, we still have the
+    // RUST_RECURSION_COUNT check in main().
+    if let Ok(canonical_tool_path) = path_delegate.canonicalize() {
+        if let Some(self_exe_canonical_path) = std::env::current_exe()
+            .ok()
+            .and_then(|v| v.canonicalize().ok())
+        {
+            if canonical_tool_path == self_exe_canonical_path {
+                tracing::error!(
+                    "Found tool {} in system path, but it is just nix-rust-wrangler again",
+                    invocation.tool.to_name()
+                );
+                tracing::error!("Did you forget to install a rust toolchain inside the flake?");
+                std::process::exit(1);
+            }
+        }
+    }
+    
+    Some(ToolInvoker::from_executable(&path_delegate))
 }
 
 fn dispatch(invoker: ToolInvoker, invocation: &Invocation) {

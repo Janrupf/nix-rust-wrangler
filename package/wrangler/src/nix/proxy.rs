@@ -18,7 +18,7 @@ pub fn run_develop_proxy(invocation: Invocation) -> ! {
     if let Some(cargo_fallback_toolchain) = std::env::var_os("NIX_RUST_WRANGLER_TOOLCHAIN_FALLBACK")
     {
         ToolInvoker::configure_command_for_toolchain(
-            Path::new(&cargo_fallback_toolchain),
+            Some(Path::new(&cargo_fallback_toolchain)),
             &mut command,
         );
     }

@@ -14,18 +14,7 @@ pub struct NixCommand {
 
 impl NixCommand {
     pub fn find() -> Option<Self> {
-        let path_env = std::env::var_os("PATH")?;
-
-        let executable = std::env::split_paths(&path_env)
-            .filter_map(|path| {
-                let nix = path.join("nix").canonicalize().ok()?;
-                if nix.is_file() {
-                    Some(nix)
-                } else {
-                    None
-                }
-            })
-            .next()?;
+        let executable = crate::util::find_executable_in_path("nix")?;
 
         tracing::trace!(
             "Running '{:?} config show experimental-features'",

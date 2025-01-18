@@ -34,7 +34,7 @@ impl ToolInvoker {
             &toolchain_dir.join("bin"),
             invocation.tool.to_executable_name(),
         )
-        .map(|invoker| Self::from_external_invoker(invoker, toolchain_dir))
+        .map(|invoker| Self::from_external_invoker(invoker, Some(toolchain_dir)))
         .ok_or_else(|| Error::ToolchainDoesNotProvideTool {
             path: toolchain_dir.to_path_buf(),
             tool: invocation.tool.to_name(),
@@ -42,10 +42,17 @@ impl ToolInvoker {
     }
 
     pub fn from_tool_and_toolchain_dir(tool_exe: &Path, toolchain_dir: &Path) -> Self {
-        Self::from_external_invoker(ExternalInvoker::from_executable(tool_exe), toolchain_dir)
+        Self::from_external_invoker(
+            ExternalInvoker::from_executable(tool_exe),
+            Some(toolchain_dir),
+        )
     }
 
-    fn from_external_invoker(mut invoker: ExternalInvoker, toolchain_dir: &Path) -> Self {
+    pub fn from_executable(executable: &Path) -> Self {
+        Self::from_external_invoker(ExternalInvoker::from_executable(executable), None)
+    }
+
+    fn from_external_invoker(mut invoker: ExternalInvoker, toolchain_dir: Option<&Path>) -> Self {
         invoker.configure_command(|cmd| {
             Self::configure_command_for_toolchain(toolchain_dir, cmd);
             cmd.env("RUST_RECURSION_COUNT", "0");
@@ -57,38 +64,40 @@ impl ToolInvoker {
     ///
     /// This is somewhat copied from rustup, but does a bit less setup. Notably PATH is not
     /// modified, as we want to keep the environment as reproducible as possible.
-    pub fn configure_command_for_toolchain(toolchain_dir: &Path, command: &mut Command) {
+    pub fn configure_command_for_toolchain(toolchain_dir: Option<&Path>, command: &mut Command) {
         // This section is shamelessly copied from rustup's source code.
         // https://github.com/rust-lang/rustup/blob/525f0d54d8e22deb428661f2b86df3e6541cae0f/src/toolchain.rs#L178
 
-        #[cfg(not(target_os = "macos"))]
-        const LIBRARY_PATH_VAR: &str = "LD_LIBRARY_PATH";
+        if let Some(toolchain_dir) = toolchain_dir {
+            #[cfg(not(target_os = "macos"))]
+            const LIBRARY_PATH_VAR: &str = "LD_LIBRARY_PATH";
 
-        #[cfg(target_os = "macos")]
-        const LIBRARY_PATH_VAR: &str = "DYLD_FALLBACK_LIBRARY_PATH";
+            #[cfg(target_os = "macos")]
+            const LIBRARY_PATH_VAR: &str = "DYLD_FALLBACK_LIBRARY_PATH";
 
-        #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
-        let mut new_library_paths = vec![toolchain_dir.join("lib")];
+            #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
+            let mut new_library_paths = vec![toolchain_dir.join("lib")];
 
-        #[cfg(target_os = "macos")]
-        if std::env::var_os(LIBRARY_PATH_VAR)
-            .filter(|v| v.len() > 0)
-            .is_none()
-        {
-            if let Some(home) = std::env::var_os("HOME") {
-                new_library_paths.push(home.join("lib"));
+            #[cfg(target_os = "macos")]
+            if std::env::var_os(LIBRARY_PATH_VAR)
+                .filter(|v| v.len() > 0)
+                .is_none()
+            {
+                if let Some(home) = std::env::var_os("HOME") {
+                    new_library_paths.push(home.join("lib"));
+                }
+                new_library_paths.push(std::path::PathBuf::from("/usr/local/lib"));
+                new_library_paths.push(std::path::PathBuf::from("/usr/lib"));
             }
-            new_library_paths.push(std::path::PathBuf::from("/usr/local/lib"));
-            new_library_paths.push(std::path::PathBuf::from("/usr/lib"));
+
+            // Note: we very explicitly skip adding CARGO_HOME to PATH, as this would
+            // be questionable for reproducibility.
+
+            command.env(
+                LIBRARY_PATH_VAR,
+                crate::util::prepend_paths(std::env::var_os(LIBRARY_PATH_VAR), &new_library_paths),
+            );
         }
-
-        // Note: we very explicitly skip adding CARGO_HOME to PATH, as this would
-        // be questionable for reproducibility.
-
-        command.env(
-            LIBRARY_PATH_VAR,
-            crate::util::prepend_paths(std::env::var_os(LIBRARY_PATH_VAR), &new_library_paths),
-        );
 
         crate::util::u32_from_env("RUST_RECURSION_COUNT")
             .checked_add(1)

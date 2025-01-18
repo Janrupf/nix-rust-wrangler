@@ -31,25 +31,21 @@
     wranglerRustToolchain = pkgs.rust-bin.stable.latest.default.override {
       extensions = [ "rust-src" "clippy" ];
     };
+
+    #lib.mkToolchainCollection [
+         #      wranglerRustToolchain
+         #      ((lib.deriveToolchainInstance (pkgs.rust-bin.stable.latest.default.override {
+         #        extensions = [ "rust-src" "clippy" "rust-analyzer" ];
+         #      })).addName "default")
+         #    ];
   in rec {
     lib = pkgs.callPackage ./lib {};
-
     legacyPackages = pkgs;
-    packages.rust-out = lib.mkToolchainCollection [
-      ((lib.deriveToolchainInstance (pkgs.rust-bin.stable.latest.default.override {
-        extensions = [ "rust-src" "clippy" "rust-analyzer" ];
-      })).addName "default")
-    ];
 
     packages.default = pkgs.nix-rust-wrangler;
 
     devShells.default = pkgs.mkShell {
-      NIX_RUST_WRANGLER_TOOLCHAIN_COLLECTION = packages.rust-out;
-      buildInputs = [ pkgs.stdenv.cc pkgs.nix-rust-wrangler ];
+      buildInputs = [ pkgs.stdenv.cc wranglerRustToolchain ];
     };
-
-    util.rust-toolchain = wranglerRustToolchain;
-  })) // {
-    someAttr = { inner = false; };
-  };
+  }));
 }

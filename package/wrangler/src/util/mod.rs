@@ -1,4 +1,5 @@
 use std::ffi::{OsStr, OsString};
+use std::path::PathBuf;
 
 pub fn prepend_paths<I, S>(current: Option<OsString>, new: I) -> OsString
 where
@@ -21,4 +22,17 @@ pub fn u32_from_env(name: &str) -> u32 {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(0)
+}
+
+pub fn was_dispatched_into_flake() -> bool {
+    std::env::var_os("NIX_RUST_WRANGLER_INSIDE_NIX_DEVELOP")
+        .map(|v| v.len() > 0)
+        .unwrap_or(false)
+}
+
+pub fn find_executable_in_path(name: impl AsRef<OsStr>) -> Option<PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|p| p.join(name.as_ref()))
+        .find(|p| p.is_file())
 }

@@ -192,7 +192,7 @@ impl FlakeInspection {
             ToolchainOverride::None => {}
         }
 
-        cmd.env("NIX_RUST_WRANGLER_INSIDE_FLAKE", "1");
+        cmd.env("NIX_RUST_WRANGLER_INSIDE_NIX_DEVELOP", "1");
 
         Ok(cmd)
     }
