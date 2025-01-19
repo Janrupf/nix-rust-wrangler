@@ -1,4 +1,5 @@
 { lib
+, pkgs
 , rustPlatform
 , toolAliases ? [
     "rustc"
@@ -17,20 +18,45 @@
     # "rustup" # This breaks CLion, oh no...
   ]
 , ...
-}:
-rustPlatform.buildRustPackage rec {
-  pname = "nix-rust-wrangler";
-  version = "0.1.0";
+}: let
+  pkg = rustPlatform.buildRustPackage rec {
+    pname = "nix-rust-wrangler";
+    version = "0.1.0";
 
-  src = ./.;
+    src = ./.;
 
-  cargoHash = "sha256-TCEzrCtDpOsGuXp231Y4uOlu+6wNoXVp/GvVT4klbWI=";
+    cargoHash = "sha256-TCEzrCtDpOsGuXp231Y4uOlu+6wNoXVp/GvVT4klbWI=";
 
-  postInstall = ''
-    cd $out/bin
+    postInstall = ''
+      cd $out/bin
 
-    ${lib.strings.concatStringsSep "\n"
-      (map (alias: "ln -s nix-rust-wrangler ${lib.strings.escapeShellArg alias}") toolAliases)
-    }
-  '';
-}
+      ${lib.strings.concatStringsSep "\n"
+        (map (alias: "ln -s nix-rust-wrangler ${lib.strings.escapeShellArg alias}") toolAliases)
+      }
+    '';
+  };
+in
+  pkg // {
+    withDefaultToolchain = toolchainName: pkgs.stdenv.mkDerivation {
+      pname = "nix-rust-wrangler-with-${toolchainName}";
+      version = pkg.version;
+
+      nativeBuildInputs = [ pkgs.makeWrapper ];
+      buildInputs = [ pkg ];
+
+      phases = [ "buildPhase" ];
+
+      buildPhase = ''
+        runHook preBuild
+
+        mkdir -p $out/bin
+
+        for tool in ${pkg}/bin/*; do
+          makeWrapper $tool $out/bin/$(basename $tool) \
+            --set RUSTUP_TOOLCHAIN ${toolchainName}
+        done
+
+        runHook postBuild
+      '';
+    };
+  }

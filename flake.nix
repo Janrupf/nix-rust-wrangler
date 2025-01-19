@@ -31,13 +31,6 @@
     wranglerRustToolchain = pkgs.rust-bin.stable.latest.default.override {
       extensions = [ "rust-src" "clippy" ];
     };
-
-    #lib.mkToolchainCollection [
-         #      wranglerRustToolchain
-         #      ((lib.deriveToolchainInstance (pkgs.rust-bin.stable.latest.default.override {
-         #        extensions = [ "rust-src" "clippy" "rust-analyzer" ];
-         #      })).addName "default")
-         #    ];
   in rec {
     lib = pkgs.callPackage ./lib {};
     legacyPackages = pkgs;
