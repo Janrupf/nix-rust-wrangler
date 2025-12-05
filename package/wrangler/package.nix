@@ -25,8 +25,7 @@
 
     src = ./.;
 
-    useFetchCargoVendor = true;
-    cargoHash = "sha256-TOTTlazj9HxqjqgZJQL5Z05cV+0+maDWeC3E9/tq6wg=";
+    cargoHash = "sha256-li6cX5xhf02G0c1xSNQgHCAoQyTu78ipzAO5cNMsZz4=";
 
     postInstall = ''
       cd $out/bin
